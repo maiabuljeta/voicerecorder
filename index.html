@@ -3,53 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Professional Voice Recording Studio</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <title>Voice Recording Studio</title>
     <style>
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             margin: 0;
-            padding: 0;
             min-height: 100vh;
             background: #111827;
             color: #fff;
+            padding: 20px;
         }
+
         .container {
-            max-width: 1000px;
+            max-width: 800px;
             margin: 0 auto;
-            padding: 40px 20px;
         }
+
         h1 {
             text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 2rem;
             background: linear-gradient(120deg, #00ff87 0%, #60efff 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
+            margin-bottom: 2rem;
         }
-        h2 {
-            font-size: 1.5rem;
-            margin: 1.5rem 0;
-            background: linear-gradient(120deg, #00ff87 30%, #60efff 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
+
         .panel {
             background: rgba(255, 255, 255, 0.05);
-            border-radius: 16px;
-            padding: 24px;
+            border-radius: 12px;
+            padding: 20px;
             margin: 20px 0;
-            backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
-        .controls {
-            display: flex;
-            gap: 12px;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
+
         button {
             padding: 12px 24px;
             border: none;
@@ -59,200 +44,116 @@
             cursor: pointer;
             font-size: 16px;
             font-weight: 600;
-            transition: all 0.3s ease;
-            min-width: 140px;
-            text-align: center;
+            margin: 5px;
+            min-width: 150px;
         }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 255, 135, 0.3);
-        }
+
         button:disabled {
             background: #2c2c2c;
             color: #666;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
         }
-        .visualizer {
-            width: 100%;
-            height: 120px;
-            background: rgba(255, 255, 255, 0.05);
-            margin: 20px 0;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .file-upload {
-            position: relative;
-            display: inline-block;
-            width: 100%;
-            margin: 20px 0;
-        }
-        .file-upload input[type="file"] {
-            display: none;
-        }
-        .file-upload label {
-            display: block;
-            padding: 15px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px dashed rgba(255, 255, 255, 0.2);
-            border-radius: 12px;
+
+        #timer {
+            font-size: 2rem;
             text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
+            color: #00ff87;
+            font-family: monospace;
+            margin: 20px 0;
         }
-        .file-upload label:hover {
-            border-color: #00ff87;
-            background: rgba(0, 255, 135, 0.1);
-        }
+
         .status {
             color: #a0aec0;
             margin: 10px 0;
-            font-size: 0.9rem;
-        }
-        .slider-container {
-            margin: 20px 0;
-        }
-        .slider-container label {
-            display: block;
-            margin-bottom: 8px;
-            color: #e2e8f0;
-        }
-        input[type="range"] {
-            width: 100%;
-            max-width: 400px;
-            height: 6px;
-            -webkit-appearance: none;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
-            outline: none;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
-            background: #00ff87;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        input[type="range"]::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-        }
-        .timer {
-            font-size: 2rem;
             text-align: center;
+        }
+
+        input[type="file"] {
+            display: block;
             margin: 20px 0;
-            font-family: monospace;
-            color: #00ff87;
+            color: #fff;
+        }
+
+        #visualizer {
+            width: 100%;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            margin: 20px 0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Professional Voice Recording Studio</h1>
+        <h1>Voice Recording Studio</h1>
         
         <div class="panel">
-            <h2>1. Upload Background Music</h2>
-            <div class="file-upload">
-                <label for="fileInput">
-                    Drag and drop your background track here or click to browse
-                    <br><span style="font-size: 0.8em; color: #a0aec0;">(MP3, WAV, or OGG)</span>
-                </label>
-                <input type="file" id="fileInput" accept="audio/*">
-            </div>
+            <h2>Background Music</h2>
+            <input type="file" id="backgroundMusic" accept="audio/*">
+            <audio id="backgroundAudio" controls style="width: 100%; margin: 10px 0;"></audio>
         </div>
 
         <div class="panel">
-            <h2>2. Voice Enhancement</h2>
-            <div class="slider-container">
-                <label for="reverb">Reverb Amount</label>
-                <input type="range" id="reverb" min="0" max="100" value="30">
-            </div>
-            <div class="slider-container">
-                <label for="compression">Compression</label>
-                <input type="range" id="compression" min="0" max="100" value="50">
-            </div>
-            <div class="slider-container">
-                <label for="eq">EQ Enhancement</label>
-                <input type="range" id="eq" min="0" max="100" value="40">
-            </div>
-        </div>
-
-        <div class="panel">
-            <h2>3. Record Your Voice</h2>
-            <div class="timer" id="timer">00:00</div>
-            <canvas class="visualizer"></canvas>
-            <div class="controls">
+            <div id="timer">00:00</div>
+            <canvas id="visualizer"></canvas>
+            <div style="text-align: center;">
                 <button id="recordButton">Start Recording</button>
-                <button id="stopButton" disabled>Stop Recording</button>
-                <button id="playButton" disabled>Play Mix</button>
-                <button id="downloadButton" disabled>Download Mix</button>
+                <button id="stopButton" disabled>Stop</button>
+                <button id="playButton" disabled>Play Recording</button>
+                <button id="downloadButton" disabled>Download</button>
             </div>
-            <p class="status" id="status">Ready to record...</p>
+            <p class="status" id="status">Ready to record</p>
         </div>
     </div>
 
     <script>
-        let audioContext;
         let mediaRecorder;
         let audioChunks = [];
-        let backgroundBuffer = null;
-        let recordingStream;
-        let isRecording = false;
-        let visualizerCanvas;
-        let canvasCtx;
-        let timerInterval;
         let startTime;
+        let timerInterval;
+        const backgroundAudio = document.getElementById('backgroundAudio');
+        const visualizer = document.getElementById('visualizer');
+        const canvasCtx = visualizer.getContext('2d');
+        let audioContext;
+        let analyser;
+        let dataArray;
+        let animationId;
 
-        // Initialize audio context and effects
-        async function initAudio() {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            setupVisualizer();
-        }
-
-        // Set up visualizer
-        function setupVisualizer() {
-            visualizerCanvas = document.querySelector('.visualizer');
-            canvasCtx = visualizerCanvas.getContext('2d');
-            
-            visualizerCanvas.width = visualizerCanvas.offsetWidth;
-            visualizerCanvas.height = visualizerCanvas.offsetHeight;
-        }
+        // Handle background music upload
+        document.getElementById('backgroundMusic').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const url = URL.createObjectURL(file);
+            backgroundAudio.src = url;
+            document.getElementById('status').textContent = 'Background music loaded!';
+        });
 
         // Update timer display
         function updateTimer() {
-            const now = Date.now();
-            const diff = now - startTime;
-            const seconds = Math.floor(diff / 1000);
+            const elapsed = Date.now() - startTime;
+            const seconds = Math.floor(elapsed / 1000);
             const minutes = Math.floor(seconds / 60);
             const displaySeconds = (seconds % 60).toString().padStart(2, '0');
             const displayMinutes = minutes.toString().padStart(2, '0');
             document.getElementById('timer').textContent = `${displayMinutes}:${displaySeconds}`;
         }
 
-        // Draw visualization
-        function drawVisualizer(dataArray) {
-            requestAnimationFrame(() => drawVisualizer(dataArray));
+        // Draw audio visualization
+        function draw() {
+            animationId = requestAnimationFrame(draw);
+            analyser.getByteTimeDomainData(dataArray);
             
-            const bufferLength = dataArray.length;
-            const width = visualizerCanvas.width;
-            const height = visualizerCanvas.height;
-            
-            canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-            canvasCtx.fillRect(0, 0, width, height);
-            
+            canvasCtx.fillStyle = 'rgba(17, 24, 39, 0.2)';
+            canvasCtx.fillRect(0, 0, visualizer.width, visualizer.height);
             canvasCtx.lineWidth = 2;
             canvasCtx.strokeStyle = '#00ff87';
             canvasCtx.beginPath();
-            
-            const sliceWidth = width / bufferLength;
+
+            const sliceWidth = visualizer.width / dataArray.length;
             let x = 0;
-            
-            for (let i = 0; i < bufferLength; i++) {
+
+            for (let i = 0; i < dataArray.length; i++) {
                 const v = dataArray[i] / 128.0;
-                const y = v * height / 2;
-                
+                const y = v * visualizer.height / 2;
+
                 if (i === 0) {
                     canvasCtx.moveTo(x, y);
                 } else {
@@ -260,227 +161,95 @@
                 }
                 x += sliceWidth;
             }
-            
-            canvasCtx.lineTo(width, height / 2);
+
+            canvasCtx.lineTo(visualizer.width, visualizer.height / 2);
             canvasCtx.stroke();
         }
 
-        // Handle background music upload
-        document.getElementById('fileInput').addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            const reader = new FileReader();
-            
-            document.getElementById('status').textContent = 'Loading background track...';
-            
-            reader.onload = async (e) => {
-                try {
-                    backgroundBuffer = await audioContext.decodeAudioData(e.target.result);
-                    document.getElementById('status').textContent = 'Background track loaded successfully!';
-                } catch (err) {
-                    document.getElementById('status').textContent = 'Error loading background track';
-                    console.error('Error decoding audio data:', err);
-                }
-            };
-            
-            reader.readAsArrayBuffer(file);
-        });
-
-        // Mix audio streams
-        async function mixAudioStreams(voiceBlob) {
-            const voiceArrayBuffer = await voiceBlob.arrayBuffer();
-            const voiceBuffer = await audioContext.decodeAudioData(voiceArrayBuffer);
-            
-            // Create offline context for mixing
-            const offlineCtx = new OfflineAudioContext(2, 
-                Math.max(backgroundBuffer.length, voiceBuffer.length), 
-                audioContext.sampleRate);
-            
-            // Create and connect nodes
-            const backgroundSource = offlineCtx.createBufferSource();
-            const voiceSource = offlineCtx.createBufferSource();
-            
-            backgroundSource.buffer = backgroundBuffer;
-            voiceSource.buffer = voiceBuffer;
-            
-            const backgroundGain = offlineCtx.createGain();
-            const voiceGain = offlineCtx.createGain();
-            
-            backgroundGain.gain.value = 0.7; // Adjust background volume
-            voiceGain.gain.value = 1.0; // Adjust voice volume
-            
-            // Add effects
-            const compressor = offlineCtx.createDynamicsCompressor();
-            const reverb = offlineCtx.createConvolver();
-            const eq = offlineCtx.createBiquadFilter();
-            
-            // Connect nodes
-            backgroundSource.connect(backgroundGain).connect(offlineCtx.destination);
-            voiceSource.connect(voiceGain).connect(compressor);
-            compressor.connect(reverb);
-            reverb.connect(eq);
-            eq.connect(offlineCtx.destination);
-            
-            // Start sources
-            backgroundSource.start();
-            voiceSource.start();
-            
-            // Render and return mixed audio
-            const renderedBuffer = await offlineCtx.startRendering();
-            const mixedBlob = await bufferToWave(renderedBuffer);
-            return mixedBlob;
-        }
-
-        // Convert AudioBuffer to WAV Blob
-        function bufferToWave(abuffer) {
-            const numOfChan = abuffer.numberOfChannels;
-            const length = abuffer.length * numOfChan * 2;
-            const buffer = new ArrayBuffer(44 + length);
-            const view = new DataView(buffer);
-            const channels = [];
-            let sample = 0;
-            let offset = 0;
-            let pos = 0;
-
-            // Write WAV header
-            setUint32(0x46464952);                         // "RIFF"
-            setUint32(36 + length);                        // file length
-            setUint32(0x45564157);                         // "WAVE"
-            setUint32(0x20746d66);                         // "fmt " chunk
-            setUint32(16);                                 // length = 16
-            setUint16(1);                                  // PCM (uncompressed)
-            setUint16(numOfChan);
-            setUint32(abuffer.sampleRate);
-            setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
-            setUint16(numOfChan * 2);                      // block-align
-            setUint16(16);                                 // 16-bit
-            setUint32(0x61746164);                         // "data" - chunk
-            setUint32(length);                             // chunk length
-
-            // Write interleaved data
-            for(let i = 0; i < abuffer.numberOfChannels; i++)
-                channels.push(abuffer.getChannelData(i));
-
-            while(pos < abuffer.length) {
-                for(let i = 0; i < numOfChan; i++) {
-                    sample = Math.max(-1, Math.min(1, channels[i][pos]));
-                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0;
-                    view.setInt16(44 + offset, sample, true); offset += 2;
-                }
-                pos++;
-            }
-
-            return new Blob([buffer], { type: "audio/wav" });
-
-            function setUint16(data) {
-                view.setUint16(pos, data, true); pos += 2;
-            }
-            function setUint32(data) {
-                view.setUint32(pos, data, true); pos += 4;
-            }
+        // Initialize visualizer
+        function setupVisualizer() {
+            visualizer.width = visualizer.offsetWidth;
+            visualizer.height = visualizer.offsetHeight;
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            dataArray = new Uint8Array(analyser.frequencyBinCount);
         }
 
         // Record button handler
         document.getElementById('recordButton').addEventListener('click', async () => {
-            if (!isRecording) {
-                try {
-                    recordingStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(recordingStream);
-                    audioChunks = [];
-                    
-                    mediaRecorder.ondataavailable = (e) => {
-                        audioChunks.push(e.data);
-                    };
-                    
-                    mediaRecorder.start();
-                    isRecording = true;
-                    startTime = Date.now();
-                    [Previous code remains exactly the same until startTime = Date.now();]
-
-                    timerInterval = setInterval(updateTimer, 1000);
-                    
-                    document.getElementById('recordButton').disabled = true;
-                    document.getElementById('stopButton').disabled = false;
-                    document.getElementById('status').textContent = 'Recording... Sing along with your track!';
-                } catch (err) {
-                    console.error('Error accessing microphone:', err);
-                    document.getElementById('status').textContent = 'Error accessing microphone. Please check permissions.';
+            try {
+                if (backgroundAudio.src) {
+                    backgroundAudio.currentTime = 0;
+                    backgroundAudio.play();
                 }
+
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setupVisualizer();
+                const audioSource = audioContext.createMediaStreamSource(stream);
+                audioSource.connect(analyser);
+                draw();
+
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    if (backgroundAudio.src) {
+                        backgroundAudio.pause();
+                    }
+                    cancelAnimationFrame(animationId);
+                };
+
+                mediaRecorder.start();
+                startTime = Date.now();
+                timerInterval = setInterval(updateTimer, 1000);
+
+                document.getElementById('recordButton').disabled = true;
+                document.getElementById('stopButton').disabled = false;
+                document.getElementById('status').textContent = 'Recording...';
+            } catch (err) {
+                console.error('Error:', err);
+                document.getElementById('status').textContent = 'Error accessing microphone';
             }
         });
 
         // Stop button handler
         document.getElementById('stopButton').addEventListener('click', () => {
-            if (isRecording) {
-                mediaRecorder.stop();
-                recordingStream.getTracks().forEach(track => track.stop());
-                isRecording = false;
-                clearInterval(timerInterval);
-                
-                document.getElementById('recordButton').disabled = false;
-                document.getElementById('stopButton').disabled = true;
-                document.getElementById('playButton').disabled = false;
-                document.getElementById('downloadButton').disabled = false;
-                document.getElementById('status').textContent = 'Recording stopped. Ready to mix!';
-            }
+            mediaRecorder.stop();
+            clearInterval(timerInterval);
+            
+            document.getElementById('recordButton').disabled = false;
+            document.getElementById('stopButton').disabled = true;
+            document.getElementById('playButton').disabled = false;
+            document.getElementById('downloadButton').disabled = false;
+            document.getElementById('status').textContent = 'Recording stopped';
         });
 
         // Play button handler
-        document.getElementById('playButton').addEventListener('click', async () => {
-            const voiceBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            if (backgroundBuffer) {
-                document.getElementById('status').textContent = 'Mixing audio...';
-                try {
-                    const mixedBlob = await mixAudioStreams(voiceBlob);
-                    const audioUrl = URL.createObjectURL(mixedBlob);
-                    const audio = new Audio(audioUrl);
-                    audio.play();
-                    document.getElementById('status').textContent = 'Playing mixed audio...';
-                } catch (err) {
-                    console.error('Error mixing audio:', err);
-                    document.getElementById('status').textContent = 'Error mixing audio';
-                }
-            } else {
-                const audioUrl = URL.createObjectURL(voiceBlob);
-                const audio = new Audio(audioUrl);
-                audio.play();
-                document.getElementById('status').textContent = 'Playing voice only (no background track detected)';
-            }
+        document.getElementById('playButton').addEventListener('click', () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play();
         });
 
         // Download button handler
-        document.getElementById('downloadButton').addEventListener('click', async () => {
-            const voiceBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            if (backgroundBuffer) {
-                document.getElementById('status').textContent = 'Mixing and preparing download...';
-                try {
-                    const mixedBlob = await mixAudioStreams(voiceBlob);
-                    const downloadUrl = URL.createObjectURL(mixedBlob);
-                    const link = document.createElement('a');
-                    link.href = downloadUrl;
-                    link.download = 'mixed-recording.wav';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    document.getElementById('status').textContent = 'Download started!';
-                } catch (err) {
-                    console.error('Error preparing download:', err);
-                    document.getElementById('status').textContent = 'Error preparing download';
-                }
-            } else {
-                const downloadUrl = URL.createObjectURL(voiceBlob);
-                const link = document.createElement('a');
-                link.href = downloadUrl;
-                link.download = 'voice-recording.webm';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                document.getElementById('status').textContent = 'Download started! (voice only)';
-            }
+        document.getElementById('downloadButton').addEventListener('click', () => {
+            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const link = document.createElement('a');
+            link.href = audioUrl;
+            link.download = 'recording.webm';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         });
 
-        // Initialize everything
+        // Initialize on load
         window.addEventListener('load', () => {
-            initAudio();
             document.getElementById('timer').textContent = '00:00';
         });
     </script>
