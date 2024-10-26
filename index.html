@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Recording Studio</title>
+    <title>Pro Voice Recording Studio</title>
     <style>
         body {
             font-family: system-ui, -apple-system, sans-serif;
@@ -84,7 +84,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Voice Recording Studio</h1>
+        <h1>Pro Voice Recording Studio</h1>
         
         <div class="panel">
             <h2>Background Music</h2>
@@ -98,8 +98,8 @@
             <div style="text-align: center;">
                 <button id="recordButton">Start Recording</button>
                 <button id="stopButton" disabled>Stop</button>
-                <button id="playButton" disabled>Play Recording</button>
-                <button id="downloadButton" disabled>Download</button>
+                <button id="playButton" disabled>Play Mix</button>
+                <button id="downloadButton" disabled>Download Mix</button>
             </div>
             <p class="status" id="status">Ready to record</p>
         </div>
@@ -107,26 +107,40 @@
 
     <script>
         let mediaRecorder;
-        let audioChunks = [];
+        let recordedChunks = [];
         let startTime;
         let timerInterval;
-        const backgroundAudio = document.getElementById('backgroundAudio');
-        const visualizer = document.getElementById('visualizer');
-        const canvasCtx = visualizer.getContext('2d');
         let audioContext;
+        let streamDestination;
+        let backgroundBuffer;
+        let visualizer = document.getElementById('visualizer');
+        let canvasCtx = visualizer.getContext('2d');
         let analyser;
-        let dataArray;
-        let animationId;
+
+        // Initialize audio context
+        async function initAudio() {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                sampleRate: 48000, // High quality sample rate
+                latencyHint: 'interactive'
+            });
+            streamDestination = audioContext.createMediaStreamDestination();
+            analyser = audioContext.createAnalyser();
+            analyser.connect(audioContext.destination);
+            
+            visualizer.width = visualizer.offsetWidth;
+            visualizer.height = visualizer.offsetHeight;
+        }
 
         // Handle background music upload
-        document.getElementById('backgroundMusic').addEventListener('change', (e) => {
+        document.getElementById('backgroundMusic').addEventListener('change', async (e) => {
             const file = e.target.files[0];
-            const url = URL.createObjectURL(file);
-            backgroundAudio.src = url;
+            const arrayBuffer = await file.arrayBuffer();
+            backgroundBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            document.getElementById('backgroundAudio').src = URL.createObjectURL(file);
             document.getElementById('status').textContent = 'Background music loaded!';
         });
 
-        // Update timer display
+        // Update timer
         function updateTimer() {
             const elapsed = Date.now() - startTime;
             const seconds = Math.floor(elapsed / 1000);
@@ -136,24 +150,25 @@
             document.getElementById('timer').textContent = `${displayMinutes}:${displaySeconds}`;
         }
 
-        // Draw audio visualization
-        function draw() {
-            animationId = requestAnimationFrame(draw);
+        // Draw visualization
+        function drawVisualizer() {
+            requestAnimationFrame(drawVisualizer);
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
             analyser.getByteTimeDomainData(dataArray);
-            
+
             canvasCtx.fillStyle = 'rgba(17, 24, 39, 0.2)';
             canvasCtx.fillRect(0, 0, visualizer.width, visualizer.height);
             canvasCtx.lineWidth = 2;
             canvasCtx.strokeStyle = '#00ff87';
             canvasCtx.beginPath();
 
-            const sliceWidth = visualizer.width / dataArray.length;
+            const sliceWidth = visualizer.width / bufferLength;
             let x = 0;
 
-            for (let i = 0; i < dataArray.length; i++) {
+            for (let i = 0; i < bufferLength; i++) {
                 const v = dataArray[i] / 128.0;
                 const y = v * visualizer.height / 2;
-
                 if (i === 0) {
                     canvasCtx.moveTo(x, y);
                 } else {
@@ -166,50 +181,154 @@
             canvasCtx.stroke();
         }
 
-        // Initialize visualizer
-        function setupVisualizer() {
-            visualizer.width = visualizer.offsetWidth;
-            visualizer.height = visualizer.offsetHeight;
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            dataArray = new Uint8Array(analyser.frequencyBinCount);
+        // Mix audio streams
+        async function mixAudio(voiceBlob) {
+            const voiceArrayBuffer = await voiceBlob.arrayBuffer();
+            const voiceBuffer = await audioContext.decodeAudioData(voiceArrayBuffer);
+            
+            // Create offline context for mixing
+            const offlineCtx = new OfflineAudioContext(2, 
+                Math.max(backgroundBuffer ? backgroundBuffer.length : 0, voiceBuffer.length),
+                48000
+            );
+
+            // Voice processing chain
+            const voiceSource = offlineCtx.createBufferSource();
+            voiceSource.buffer = voiceBuffer;
+
+            // Create processing nodes
+            const compressor = offlineCtx.createDynamicsCompressor();
+            compressor.threshold.value = -24;
+            compressor.knee.value = 30;
+            compressor.ratio.value = 12;
+            compressor.attack.value = 0.003;
+            compressor.release.value = 0.25;
+
+            const eq = offlineCtx.createBiquadFilter();
+            eq.type = 'peaking';
+            eq.frequency.value = 3000;
+            eq.Q.value = 1;
+            eq.gain.value = 4;
+
+            const highPass = offlineCtx.createBiquadFilter();
+            highPass.type = 'highpass';
+            highPass.frequency.value = 80;
+
+            // Connect voice processing chain
+            voiceSource.connect(highPass)
+                      .connect(compressor)
+                      .connect(eq);
+
+            if (backgroundBuffer) {
+                const backSource = offlineCtx.createBufferSource();
+                backSource.buffer = backgroundBuffer;
+                
+                const backGain = offlineCtx.createGain();
+                backGain.gain.value = 0.5; // Lower background volume
+                
+                backSource.connect(backGain)
+                         .connect(offlineCtx.destination);
+                backSource.start();
+            }
+
+            eq.connect(offlineCtx.destination);
+            voiceSource.start();
+
+            const renderedBuffer = await offlineCtx.startRendering();
+            const mixedBlob = await bufferToWave(renderedBuffer);
+            return mixedBlob;
+        }
+
+        // Convert AudioBuffer to WAV
+        function bufferToWave(abuffer) {
+            const numOfChan = abuffer.numberOfChannels;
+            const length = abuffer.length * numOfChan * 2;
+            const buffer = new ArrayBuffer(44 + length);
+            const view = new DataView(buffer);
+            let pos = 0;
+
+            // Write WAV header
+            setUint32(0x46464952);                         // "RIFF"
+            setUint32(36 + length);                        // file length
+            setUint32(0x45564157);                         // "WAVE"
+            setUint32(0x20746d66);                         // "fmt " chunk
+            setUint32(16);                                 // length = 16
+            setUint16(1);                                  // PCM (uncompressed)
+            setUint16(numOfChan);
+            setUint32(abuffer.sampleRate);
+            setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+            setUint16(numOfChan * 2);                      // block-align
+            setUint16(16);                                 // 16-bit
+            setUint32(0x61746164);                         // "data" - chunk
+            setUint32(length);                             // chunk length
+
+            // Write interleaved data
+            const channels = [];
+            for(let i = 0; i < abuffer.numberOfChannels; i++) {
+                channels.push(abuffer.getChannelData(i));
+            }
+
+            let offset = 0;
+            for(let i = 0; i < abuffer.length; i++) {
+                for(let j = 0; j < numOfChan; j++) {
+                    let sample = Math.max(-1, Math.min(1, channels[j][i]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767)|0;
+                    view.setInt16(44 + offset, sample, true);
+                    offset += 2;
+                }
+            }
+
+            return new Blob([buffer], { type: "audio/wav" });
+
+            function setUint16(data) {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            }
+            function setUint32(data) {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            }
         }
 
         // Record button handler
         document.getElementById('recordButton').addEventListener('click', async () => {
             try {
-                if (backgroundAudio.src) {
-                    backgroundAudio.currentTime = 0;
-                    backgroundAudio.play();
-                }
-
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                setupVisualizer();
-                const audioSource = audioContext.createMediaStreamSource(stream);
-                audioSource.connect(analyser);
-                draw();
-
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                
-                mediaRecorder.ondataavailable = (event) => {
-                    audioChunks.push(event.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    if (backgroundAudio.src) {
-                        backgroundAudio.pause();
+                await initAudio();
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        autoGainControl: false,
+                        channelCount: 2,
+                        sampleRate: 48000
                     }
-                    cancelAnimationFrame(animationId);
+                });
+
+                const micSource = audioContext.createMediaStreamSource(stream);
+                micSource.connect(analyser);
+                drawVisualizer();
+
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus',
+                    bitsPerSecond: 256000
+                });
+                
+                recordedChunks = [];
+                mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) recordedChunks.push(e.data);
                 };
 
-                mediaRecorder.start();
                 startTime = Date.now();
                 timerInterval = setInterval(updateTimer, 1000);
+                mediaRecorder.start(100);
 
                 document.getElementById('recordButton').disabled = true;
                 document.getElementById('stopButton').disabled = false;
-                document.getElementById('status').textContent = 'Recording...';
+                document.getElementById('status').textContent = 'Recording in high quality...';
+
+                if (backgroundBuffer) {
+                    document.getElementById('backgroundAudio').play();
+                }
             } catch (err) {
                 console.error('Error:', err);
                 document.getElementById('status').textContent = 'Error accessing microphone';
@@ -219,38 +338,61 @@
         // Stop button handler
         document.getElementById('stopButton').addEventListener('click', () => {
             mediaRecorder.stop();
+            document.getElementById('backgroundAudio').pause();
+            document.getElementById('backgroundAudio').currentTime = 0;
             clearInterval(timerInterval);
             
             document.getElementById('recordButton').disabled = false;
             document.getElementById('stopButton').disabled = true;
             document.getElementById('playButton').disabled = false;
             document.getElementById('downloadButton').disabled = false;
-            document.getElementById('status').textContent = 'Recording stopped';
+            document.getElementById('status').textContent = 'Recording finished!';
         });
 
         // Play button handler
-        document.getElementById('playButton').addEventListener('click', () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const audio = new Audio(audioUrl);
-            audio.play();
+        document.getElementById('playButton').addEventListener('click', async () => {
+            const voiceBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+            document.getElementById('status').textContent = 'Processing audio...';
+            try {
+                const mixedBlob = await mixAudio(voiceBlob);
+                const audioUrl = URL.createObjectURL(mixedBlob);
+                const audio = new Audio(audioUrl);
+                audio.play();
+                document.getElementById('status').textContent = 'Playing enhanced mix...';
+            } catch (err) {
+                console.error('Error:', err);
+                document.getElementById('status').textContent = 'Error processing audio';
+            }
         });
 
         // Download button handler
-        document.getElementById('downloadButton').addEventListener('click', () => {
-            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            const audioUrl = URL.createObjectURL(audioBlob);
-            const link = document.createElement('a');
-            link.href = audioUrl;
-            link.download = 'recording.webm';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+        document.getElementById('downloadButton').addEventListener('click', async () => {
+            const voiceBlob = new Blob(recordedChunks, { type: 'audio/webm' });
+            document.getElementById('status').textContent = 'Processing final mix...';
+            try {
+                const mixedBlob = await mixAudio(voiceBlob);
+                const url = URL.createObjectURL(mixedBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'enhanced-recording.wav';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                document.getElementById('status').textContent = 'Download ready!';
+            } catch (err) {
+                console.error('Error:', err);
+                document.getElementById('status').textContent = 'Error processing audio';
+            }
         });
 
-        // Initialize on load
-        window.addEventListener('load', () => {
+        // Initialize
+        window.addEventListener('load', async () => {
             document.getElementById('timer').textContent = '00:00';
+            try {
+                await initAudio();
+            } catch (err) {
+                console.error('Error initializing audio:', err);
+            }
         });
     </script>
 </body>
